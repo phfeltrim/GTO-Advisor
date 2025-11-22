@@ -1,0 +1,17 @@
+# Ignorar pastas de compilação e executáveis
+__pycache__/
+build/
+dist/
+*.spec
+*.exe
+*.pkg
+
+# Ignorar banco de dados local (opcional, mas recomendado)
+*.db
+poker_analytics.db
+
+# Ignorar ambientes virtuais
+venv/
+env/
+.env
+.vscode/
