@@ -1,3 +1,4 @@
+import requests
 import tkinter as tk
 from tkinter import ttk, messagebox, Toplevel
 from PIL import Image, ImageTk
@@ -10,6 +11,9 @@ from motor_poker import (
     get_training_stats, update_bankroll, get_bankroll_history,
     save_custom_range_db, get_all_custom_ranges, get_villain_profile
 )
+
+# --- CONFIGURAÇÃO DA API (No futuro será seu site real) ---
+API_URL = "http://127.0.0.1:8000"
 
 # --- CONFIG ---
 def resource_path(relative_path):
@@ -315,5 +319,101 @@ class PokerAdvisorApp:
     def _iniciar_jogo(self): self._construir_ui(False)
     def _iniciar_treino(self): self._construir_ui(True); self._gerar_treino()
 
+class LoginWindow(tk.Toplevel):
+    def __init__(self, root, on_success_callback):
+        super().__init__(root)
+        self.title("Login - GTO Advisor Pro")
+        self.geometry("400x550")
+        self.configure(bg="#1e1e1e")
+        self.resizable(False, False)
+        self.on_success = on_success_callback
+        
+        # Se fechar o login, fecha o app todo
+        self.protocol("WM_DELETE_WINDOW", root.destroy)
+        
+        self._setup_ui()
+
+    def _setup_ui(self):
+        # Logo / Branding
+        tk.Label(self, text="♠️", font=("Segoe UI", 60), bg="#1e1e1e", fg="#007acc").pack(pady=(40, 10))
+        tk.Label(self, text="GTO ADVISOR", font=("Segoe UI", 22, "bold"), bg="#1e1e1e", fg="white").pack()
+        tk.Label(self, text="Acesso Profissional", font=("Segoe UI", 10), bg="#1e1e1e", fg="#aaa").pack(pady=(0, 30))
+
+        # Inputs
+        frame = tk.Frame(self, bg="#1e1e1e")
+        frame.pack(fill="x", padx=40)
+
+        tk.Label(frame, text="E-mail", bg="#1e1e1e", fg="white", anchor="w", font=("Segoe UI", 10, "bold")).pack(fill="x")
+        self.entry_email = tk.Entry(frame, bg="#333", fg="white", font=("Segoe UI", 12), insertbackground="white")
+        self.entry_email.pack(fill="x", pady=(5, 15), ipady=3)
+
+        tk.Label(frame, text="Senha", bg="#1e1e1e", fg="white", anchor="w", font=("Segoe UI", 10, "bold")).pack(fill="x")
+        self.entry_pass = tk.Entry(frame, bg="#333", fg="white", font=("Segoe UI", 12), show="*", insertbackground="white")
+        self.entry_pass.pack(fill="x", pady=(5, 20), ipady=3)
+
+        # Botão
+        self.btn_login = tk.Button(frame, text="ENTRAR", bg="#007acc", fg="white", font=("Segoe UI", 11, "bold"), 
+                                   relief="flat", command=self._fazer_login)
+        self.btn_login.pack(fill="x", pady=10, ipady=5)
+
+        # Rodapé
+        tk.Label(self, text="Não tem conta?", bg="#1e1e1e", fg="#aaa", font=("Segoe UI", 9)).pack(pady=(20,0))
+        lbl_site = tk.Label(self, text="Adquira sua licença aqui", bg="#1e1e1e", fg="#007acc", font=("Segoe UI", 9, "underline"), cursor="hand2")
+        lbl_site.pack()
+        # lbl_site.bind("<Button-1>", lambda e: webbrowser.open("https://seusite.com"))
+
+    def _fazer_login(self):
+        email = self.entry_email.get().strip()
+        pwd = self.entry_pass.get().strip()
+        
+        if not email or not pwd:
+            messagebox.showwarning("Atenção", "Preencha todos os campos.")
+            return
+
+        self.btn_login.config(text="CONECTANDO...", state="disabled", bg="#333")
+        self.update()
+
+        try:
+            # 1. Tenta logar na API
+            payload = {"email": email, "password": pwd}
+            response = requests.post(f"{API_URL}/login", json=payload, timeout=5)
+            
+            if response.status_code == 200:
+                # Sucesso!
+                data = response.json()
+                token = data.get("access_token")
+                # Decodificar o token para saber o plano seria ideal, 
+                # mas por enquanto vamos apenas liberar o acesso.
+                self.on_success(token)
+                self.destroy()
+            elif response.status_code == 401:
+                messagebox.showerror("Login Falhou", "E-mail ou senha incorretos.")
+            elif response.status_code == 400:
+                messagebox.showerror("Acesso Negado", "Assinatura inativa ou expirada.")
+            else:
+                messagebox.showerror("Erro", f"Erro no servidor: {response.status_code}")
+
+        except requests.exceptions.ConnectionError:
+            messagebox.showerror("Erro de Conexão", "Não foi possível conectar ao servidor.\nVerifique se o servidor está rodando.")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Ocorreu um erro inesperado: {e}")
+        finally:
+            self.btn_login.config(text="ENTRAR", state="normal", bg="#007acc")
+
+# --- MAIN MODIFICADO ---
 if __name__ == "__main__":
-    root = tk.Tk(); app = PokerAdvisorApp(root); root.mainloop()
+    # Oculta a janela principal do Tkinter inicialmente
+    root = tk.Tk()
+    root.withdraw() 
+
+    def iniciar_aplicacao(token):
+        # Callback chamado quando o login é bem sucedido
+        root.deiconify() # Mostra a janela principal
+        app = PokerAdvisorApp(root)
+        # Aqui você poderia salvar o token no app para usar depois
+        # app.auth_token = token 
+
+    # Inicia pela tela de Login
+    login_screen = LoginWindow(root, iniciar_aplicacao)
+    
+    root.mainloop()
