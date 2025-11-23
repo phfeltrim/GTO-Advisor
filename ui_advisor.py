@@ -13,7 +13,7 @@ from motor_poker import (
 )
 
 # --- CONFIGURAÇÃO DA API (No futuro será seu site real) ---
-API_URL = "http://127.0.0.1:8000"
+API_URL = "https://gto-server-api.onrender.com"
 
 # --- CONFIG ---
 def resource_path(relative_path):
